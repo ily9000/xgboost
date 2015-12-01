@@ -40,6 +40,7 @@ class BoostLearner : public rabit::Serializable {
     seed_per_iteration = 0;
     seed = 0;
     save_base64 = 0;
+    max_row_perbatch = 0;
   }
   virtual ~BoostLearner(void) {
     if (obj_ != NULL) delete obj_;
@@ -108,6 +109,9 @@ class BoostLearner : public rabit::Serializable {
     if (!strcmp(name, "eval_metric")) evaluator_.AddEval(val);
     if (!strcmp("seed", name)) {
       seed = atoi(val); random::Seed(seed);
+    }
+    if (!strcmp("max_row_perbatch", name)) {
+      max_row_perbatch = atoi(val);
     }
     if (!strcmp("seed_per_iter", name)) seed_per_iteration = atoi(val);
     if (!strcmp("save_base64", name)) save_base64 = atoi(val);
@@ -262,13 +266,19 @@ class BoostLearner : public rabit::Serializable {
    * \param p_train pointer to the matrix used by training
    */
   inline void CheckInit(DMatrix *p_train) {
+    if (p_train->fmat()->HaveColAccess()) return;
     int ncol = static_cast<int>(p_train->info.info.num_col);
     std::vector<bool> enabled(ncol, true);
     // set max row per batch to limited value
     // in distributed mode, use safe choice otherwise
     size_t max_row_perbatch = std::numeric_limits<size_t>::max();
     if (updater_mode != 0 || distributed_mode == 2) {
-      max_row_perbatch = 32UL << 10UL;
+      max_row_perbatch = 32 << 10UL;
+    }
+    if (this->max_row_perbatch != 0) {
+      max_row_perbatch = this->max_row_perbatch;
+      utils::Printf("Set max row batch=%lu\n", max_row_perbatch);
+      this->SetParam("updater", "grow_histmaker,prune");
     }
     // initialize column access
     p_train->fmat()->InitColAccess(enabled,
@@ -497,6 +507,8 @@ class BoostLearner : public rabit::Serializable {
   size_t pred_buffer_size;
   // maximum buffred row value
   float prob_buffer_row;
+  // max row per batch
+  int max_row_perbatch;
   // evaluation set
   EvalSet evaluator_;
   // model parameter

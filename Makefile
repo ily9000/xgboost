@@ -70,7 +70,7 @@ ifeq ($(OS), Windows_NT)
 	LIBRABIT = subtree/rabit/lib/librabit_empty.a
 	SLIB = wrapper/xgboost_wrapper.dll
 else
-	LIBRABIT = subtree/rabit/lib/librabit.a
+	LIBRABIT = subtree/rabit/lib/librabit_empty.a
 	SLIB = wrapper/libxgboostwrapper.so
 endif
 
